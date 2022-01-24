@@ -11,19 +11,12 @@ import time
 #The class connects to the database and extracts the data that will be used to ML purposes
 class connection():
 	'''Conexión a la base de datos'''
-	cx_Oracle.init_oracle_client(lib_dir=config.lib_dir)
+	#cx_Oracle.init_oracle_client(lib_dir=config.lib_dir)
 	def __init__(self):
-		self.username= config.username
-		self.password= config.password
-		self.dsn = config.dsn
-		self.encoding = config.encoding
 		self.connection = None
-		self.cur = None
-
-	connection = None
 
 	# Makes the connection to the database, if not possible throws an error
-	def try_conection(self):
+	def try_connection(self):
 		try:
 			print("username:",config.username)
 			self.connection = cx_Oracle.connect(
@@ -40,18 +33,18 @@ class connection():
 	def make_query (self, dictionary):
 		self.cur=self.connection.cursor()
 		time_start = datetime.datetime.now()
+		dic_df={}
 		for key in dictionary:
 			query = dictionary[key][0]
 			list_title_query = dictionary[key][1]
 			list_functions = dictionary[key][2]
-
 			
 			if "no_function" in list_functions:
 					self.cur.execute(query)
 					self.res = self.cur.fetchall()
 					# Create the dataframe
 					df_str = f"df_{list_title_query[0]}"
-					locals()[df_str] = pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[0]])
+					dic_df[df_str]= pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[0]])
 				
 			elif "pivot_table" in list_functions:
 				if len(list_functions) == 1:
@@ -59,8 +52,8 @@ class connection():
 					self.res = self.cur.fetchall()
 					# Create the dataframe
 					df_str = f"df_{list_title_query[0]}"
-					locals()[df_str] = pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[1], list_title_query[0]])
-					pd.pivot_table(df_str, values = list_title_query[0], index = ['PERSONA'], columns = list_title_query[1], fill_value = 0)
+					dic_df[df_str] = pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[1], list_title_query[0]])
+					pd.pivot_table(dic_df[df_str], values = list_title_query[0], index = ['PERSONA'], columns = list_title_query[1], fill_value = 0)
 
 				else:
 					if "suffix" in list_functions:
@@ -68,9 +61,13 @@ class connection():
 						self.res = self.cur.fetchall()
 						# Create the dataframe
 						df_str = f"df_{list_title_query[0]}"
-						locals()[df_str] = pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[1], list_title_query[0]])
-						pd.pivot_table(df_str)
+						dic_df[df_str] = pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[1], list_title_query[0]])
+						pd.pivot_table(dic_df[df_str], values = list_title_query[0], index = ['PERSONA'], columns = list_title_query[1], fill_value = 0)
+						dic_df[df_str].columns = [str(col) +  list_title_query[-1] for col in dic_df[df_str].columns]
 
+		
+		for k in dic_df:
+			print(k)
                     
 		query_time = datetime.datetime.now() - time_start
 		print(f"Duración de Consulta (seg): {query_time}")
@@ -96,7 +93,7 @@ LEFT JOIN ( \
 WHERE P.FECHA_RETIRO IS NOT NULL \
 AND  MONTHS_BETWEEN (P.FECHA_RETIRO, P.FECHA_INGRESO) >= 3 \
 AND  P.GERENCIA_RESPONSABLE  <> 'INTELIGENCIA ARTIFICIAL'  \
-ORDER BY P.CONSECUTIVO", ["ASIGNACIONES_FACTURADAS"], ["no function"]],
+ORDER BY P.CONSECUTIVO", ["ASIGNACIONES_FACTURADAS"], ["no_function"]],
 
 #***************************************************************************************************
 "query_2": ["\
@@ -114,7 +111,7 @@ LEFT JOIN ( \
 WHERE P.FECHA_RETIRO IS NOT NULL \
 AND  MONTHS_BETWEEN (P.FECHA_RETIRO, P.FECHA_INGRESO) >= 3  \
 AND  P.GERENCIA_RESPONSABLE  <> 'INTELIGENCIA ARTIFICIAL'  \
-ORDER BY P.CONSECUTIVO", ["ASIGNACIONES_NO_FACTURADAS"], ["no function"]],
+ORDER BY P.CONSECUTIVO", ["ASIGNACIONES_NO_FACTURADAS"], ["no_function"]],
 
 #***************************************************************************************************
 "query_3": ["\
@@ -546,7 +543,7 @@ ORDER BY A.PERSONA, A.TIPO_SERVICIO", ["CANTIDAD_RIESGOS", "TIPO_SERVICIO"], ["p
 #---------------------------------------------- Calls ----------------------------------------------
 con = connection()
 con.try_connection()
-#con.make_query(q)
+con.make_query(dict_retired)
 
 
 
