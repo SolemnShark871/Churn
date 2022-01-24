@@ -4,34 +4,33 @@ import numpy as np
 import datetime
 from datetime import date
 import cx_Oracle
-import configuration as config
+import config
 import time
 
 #---------------------------------------------- Class to extract the data ----------------------------------------------
 #The class connects to the database and extracts the data that will be used to ML purposes
 class connection():
 	'''Conexión a la base de datos'''
-	#cx_Oracle.init_oracle_client(lib_dir=config.lib_dir)
+	cx_Oracle.init_oracle_client(lib_dir=config.lib_dir)
 	def __init__(self):
 		self.username= config.username
 		self.password= config.password
 		self.dsn = config.dsn
 		self.encoding = config.encoding
 		self.connection = None
-		#self.cur = None
-		self.cur=self.connection.cursor()
+		self.cur = None
 
 	connection = None
 
 	# Makes the connection to the database, if not possible throws an error
 	def try_conection(self):
 		try:
-			print("username:",self.username)
+			print("username:",config.username)
 			self.connection = cx_Oracle.connect(
-				self.username,
-				self.password,
-				self.dsn,
-				encoding=self.encoding)
+				config.username,
+				config.password,
+				config.dsn,
+				encoding=config.encoding)
 			# Show the version of the Oracle Database
 			print("conection_version:",self.connection.version)
 		except cx_Oracle.Error as error:
@@ -39,6 +38,7 @@ class connection():
 
     # Function to query the data to the database through SQL strings
 	def make_query (self, dictionary):
+		self.cur=self.connection.cursor()
 		time_start = datetime.datetime.now()
 		for key in dictionary:
 			query = dictionary[key][0]
@@ -546,7 +546,7 @@ ORDER BY A.PERSONA, A.TIPO_SERVICIO", ["CANTIDAD_RIESGOS", "TIPO_SERVICIO"], ["p
 #---------------------------------------------- Calls ----------------------------------------------
 con = connection()
 con.try_connection()
-con.make_query(q)
+#con.make_query(q)
 
 
 
