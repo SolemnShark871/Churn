@@ -117,9 +117,10 @@ class connection():
 	# dictionary: is the container of the dataframes with keys as the subsets fetched from the database
 	def merge_df(self, dictionary: dict) -> pd.DataFrame:
 		time_start = datetime.datetime.now()
-		df = dictionary[0]
-		for key in dictionary:
-			df = 
+		keys = list(dictionary.keys())
+		df = dictionary[keys[0]]
+		for i in range(1, len(keys)):	
+			df = pd.merge(df, dictionary[keys[i]], left_on = 'PERSONA', right_on = 'PERSONA')
 
 		query_time = datetime.datetime.now() - time_start
 		print(f"Duración del procedimiento (seg): {query_time}")
@@ -598,7 +599,11 @@ ORDER BY A.PERSONA, A.TIPO_SERVICIO", ["CANTIDAD_RIESGOS", "TIPO_SERVICIO"], ["p
 #---------------------------------------------- Calls ----------------------------------------------
 con = connection()
 con.try_connection()
-con.make_query(dict_retired)
+dic_df_retired = con.make_query(dict_retired)
+dic_df_non_retired = con.make_query(dict_non_retired)
+
+df_retired = con.merge_df(dic_df_retired)
+df_non_retired = con.merge_df(dic_df_non_retired)
 
 
 
