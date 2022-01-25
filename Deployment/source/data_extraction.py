@@ -91,7 +91,7 @@ class connection():
 			elif "age" or "time" in list_functions:
 				self.cur.execute(query)
 				self.res = self.cur.fetchall()
-				func = age_f if "age" in list_functions else time_f
+				func = self.age_f if "age" in list_functions else self.time_f
 				# Create the dataframe
 				dic_df[df_str] = pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[1], list_title_query[2]])
 				dic_df[df_str][list_title_query[0]] = dic_df[df_str][[list_title_query[1], list_title_query[2]]].apply(func, axis = 1)
@@ -582,7 +582,7 @@ ORDER BY A.PERSONA, A.TIPO_SERVICIO", ["CANTIDAD_RIESGOS", "TIPO_SERVICIO"], ["p
 #***************************************************************************************************
 "query_10": ["SELECT CONSECUTIVO AS PERSONA, FECHA_NACIMIENTO FROM PERSONAS\
             WHERE FECHA_RETIRO IS NULL AND FECHA_NACIMIENTO IS NOT NULL", 
-			["EDAD", "FECHA_NACIOMIENTO"], ["age", "apply", "drop"]],
+			["EDAD", "FECHA_NACIMIENTO", "FECHA_RETIRO"], ["age", "apply", "drop"]],
 
 #***************************************************************************************************
 "query_11": ["SELECT CONSECUTIVO AS PERSONA, GENERO FROM PERSONAS\
@@ -591,7 +591,7 @@ ORDER BY A.PERSONA, A.TIPO_SERVICIO", ["CANTIDAD_RIESGOS", "TIPO_SERVICIO"], ["p
 #***************************************************************************************************
 "query_12": ["SELECT CONSECUTIVO AS PERSONA, FECHA_INGRESO FROM PERSONAS\
             WHERE FECHA_RETIRO IS NULL AND FECHA_INGRESO IS NOT NULL", 
-			["TIEMPO_EMP", "FECHA_INGRESO"], ["time", "apply", "drop"]]
+			["TIEMPO_EMP", "FECHA_INGRESO", "FECHA_RETIRO"], ["time", "apply", "drop"]]
 
 #***************************************************************************************************
 }
@@ -603,8 +603,10 @@ dic_df_retired = con.make_query(dict_retired)
 dic_df_non_retired = con.make_query(dict_non_retired)
 
 df_retired = con.merge_df(dic_df_retired)
-df_non_retired = con.merge_df(dic_df_non_retired)
+df_retired.head()
 
+df_non_retired = con.merge_df(dic_df_non_retired)
+df_non_retired.head()
 
 
 
