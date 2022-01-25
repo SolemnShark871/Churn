@@ -23,59 +23,114 @@ class connection():
 				config.username,
 				config.password,
 				config.dsn,
-				encoding=config.encoding)
+				encoding = config.encoding)
 			# Show the version of the Oracle Database
 			print("conection_version:",self.connection.version)
 		except cx_Oracle.Error as error:
 			print("error:", error)
+				
+	# Function to calculate people's age
+	def age_f(self, date):
+		self.birth_date = date[0]
+		self.retire_date = date[1]
+		age = (self.retire_date.year - self.birth_date.year - ((self.retire_date.month - 2, self.retire_date.day) < 
+				(self.birth_date.month, self.birth_date.day)))
+		return age
+
+	#Function to calculate people time in the company
+	def time_f(self, date):
+		self.enter_date = date[0]
+		self.retire_date = date[1]
+		months = (self.retire_date.year - self.enter_date.year)*12 + (self.retire_date.month - self.enter_date.month) - 2
+		return months
 
     # Function to query the data to the database through SQL strings
-	def make_query (self, dictionary):
-		self.cur=self.connection.cursor()
+	# dictionary: is the container of the SQl queries together with the functions they need to be fetched
+	def make_query (self, dictionary: dict) -> dict:
+		self.cur = self.connection.cursor()
 		time_start = datetime.datetime.now()
-		dic_df={}
+		dic_df = {}
 		for key in dictionary:
 			query = dictionary[key][0]
 			list_title_query = dictionary[key][1]
 			list_functions = dictionary[key][2]
+
+			df_str = f"df_{list_title_query[0]}"
 			
 			if "no_function" in list_functions:
 					self.cur.execute(query)
 					self.res = self.cur.fetchall()
 					# Create the dataframe
-					df_str = f"df_{list_title_query[0]}"
 					dic_df[df_str]= pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[0]])
 				
 			elif "pivot_table" in list_functions:
+				# Create the dataframe
+				dic_df[df_str] = pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[1], list_title_query[0]])
+					
 				if len(list_functions) == 1:
 					self.cur.execute(query)
 					self.res = self.cur.fetchall()
 					# Create the dataframe
-					df_str = f"df_{list_title_query[0]}"
-					dic_df[df_str] = pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[1], list_title_query[0]])
-					pd.pivot_table(dic_df[df_str], values = list_title_query[0], index = ['PERSONA'], columns = list_title_query[1], fill_value = 0)
+					dic_df[df_str] = pd.pivot_table(dic_df[df_str], values = list_title_query[0], index = ['PERSONA'], columns = list_title_query[1], fill_value = 0)
 
 				else:
 					if "suffix" in list_functions:
 						self.cur.execute(query)
 						self.res = self.cur.fetchall()
-						# Create the dataframe
-						df_str = f"df_{list_title_query[0]}"
-						dic_df[df_str] = pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[1], list_title_query[0]])
-						pd.pivot_table(dic_df[df_str], values = list_title_query[0], index = ['PERSONA'], columns = list_title_query[1], fill_value = 0)
-						dic_df[df_str].columns = [str(col) +  list_title_query[-1] for col in dic_df[df_str].columns]
+						# Additional data managing
+						dic_df[df_str] = pd.pivot_table(dic_df[df_str], values = list_title_query[0], index = ['PERSONA'], columns = list_title_query[1], fill_value = 0)
+						dic_df[df_str].columns = [str(col) + f"_{list_title_query[-1]}" for col in dic_df[df_str].columns]
+					
+					elif "fillna" in list_functions:
+						self.cur.execute(query)
+						self.res = self.cur.fetchall()
+						# Additional data managing
+						dic_df[df_str][list_title_query[1]] = dic_df[df_str][list_title_query[1]].fillna(list_title_query[-1])
+						dic_df[df_str] = pd.pivot_table(dic_df[df_str], values = list_title_query[0], index = ['PERSONA'], columns = list_title_query[1], fill_value = 0)
 
-		
+			elif "age" or "time" in list_functions:
+				self.cur.execute(query)
+				self.res = self.cur.fetchall()
+				func = age_f if "age" in list_functions else time_f
+				# Create the dataframe
+				dic_df[df_str] = pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[1], list_title_query[2]])
+				dic_df[df_str][list_title_query[0]] = dic_df[df_str][[list_title_query[1], list_title_query[2]]].apply(func, axis = 1)
+				dic_df[df_str].drop(columns = [list_title_query[1], list_title_query[2]], inplace = True)
+
+			elif "replace" in list_functions:
+				self.cur.execute(query)
+				self.res = self.cur.fetchall()
+				# Create the dataframe
+				dic_df[df_str] = pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[0]])
+				# 0 for Men and 1 for Women
+				dic_df[df_str].replace(to_replace = ['M', 'F'], value = [0, 1], inplace = True)
+
 		for k in dic_df:
 			print(k)
                     
 		query_time = datetime.datetime.now() - time_start
 		print(f"Duración de Consulta (seg): {query_time}")
 
+		return dic_df
+
+	# Function to merge the dataframes which will made up the dataset
+	# dictionary: is the container of the dataframes with keys as the subsets fetched from the database
+	def merge_df(self, dictionary: dict) -> pd.DataFrame:
+		time_start = datetime.datetime.now()
+		df = dictionary[0]
+		for key in dictionary:
+			df = 
+
+		query_time = datetime.datetime.now() - time_start
+		print(f"Duración del procedimiento (seg): {query_time}")
+
+		return df
+
 #---------------------------------------------- Dictionaries ----------------------------------------------
 # Dictionaries with the queries and the process they need to be fetched
 # Dictionary structure =>
-# dictionary = ["SQL query", "Title of the subset fetched from the database", "Functions that require the subset to be merged"]
+# dictionary = ["SQL query": string, ["Titles from the set and the subsets fetched from the database"]: list,
+# 				["Functions that require the subset to be merged"]: list]
 dict_retired = {
 #***************************************************************************************************
 "query_1": ["\
@@ -209,7 +264,7 @@ LEFT JOIN ( \
 	WHERE EA.HORA_FINALIZACION > ADD_MONTHS(P.FECHA_RETIRO, -14) \
 	AND   EA.HORA_FINALIZACION < ADD_MONTHS(P.FECHA_RETIRO, -2) \
 	GROUP BY P.CONSECUTIVO, EA.CODIGO_ETAPA ) B ON A.PERSONA = B.PERSONA AND A.ETAPA = B.ETAPA \
-ORDER BY A.PERSONA, A.ETAPA", ["HORAS_ETAPA", "ETAPA"], ["fillna_SIN_ETAPA", "pivot_table"]],
+ORDER BY A.PERSONA, A.ETAPA", ["HORAS_ETAPA", "ETAPA"], ["pivot_table", "fillna", "SIN_ETAPA"]],
 
 #***************************************************************************************************
 "query_7": ["\
@@ -441,7 +496,7 @@ LEFT JOIN ( \
 	AND   EA.HORA_FINALIZACION > ADD_MONTHS(CAST(CURRENT_TIMESTAMP AS DATE), -14) \
 	AND   EA.HORA_FINALIZACION < ADD_MONTHS(CAST(CURRENT_TIMESTAMP AS DATE), -2) \
 	GROUP BY P.CONSECUTIVO, EA.CODIGO_ETAPA ) B ON A.PERSONA = B.PERSONA AND A.ETAPA = B.ETAPA \
-ORDER BY A.PERSONA, A.ETAPA", ["HORAS_ETAPA", "ETAPA"], ["fillna_SIN_ETAPA", "pivot_table"]],
+ORDER BY A.PERSONA, A.ETAPA", ["HORAS_ETAPA", "ETAPA"], ["pivot_table", "fillna", "SIN_ETAPA"]],
 
 #***************************************************************************************************
 "query_7": ["\
