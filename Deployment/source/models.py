@@ -8,7 +8,7 @@ class models():
         X = df.drop(['LABEL'],axis = 1)
         y = df['LABEL']
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify = y)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.05, stratify = y)
 
         svm = SVC()
 
