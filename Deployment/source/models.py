@@ -1,3 +1,25 @@
+
+import os
+import pandas as pd
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GridSearchCV   #####Revisar esta librería.
+from sklearn.decomposition import PCA
+from sklearn.svm import SVC
+from sklearn.metrics import classification_report
+from sklearn.linear_model import LogisticRegression
+import pickle
+import datetime
+import numpy as np
+
+import tensorflow as tf
+from tensorflow.keras.optimizers import SGD, Adam
+from keras import layers, models
+from keras.layers import Dense, Dropout
+from keras.models import Sequential
+from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
+
+
 class models():
     def __init__(self):
         raise NotImplementedError
