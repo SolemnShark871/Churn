@@ -6,12 +6,13 @@ from datetime import date
 import cx_Oracle
 import config
 import time
+from azure.storage.blob import BlobServiceClient
 
 #---------------------------------------------- Class to extract the data ----------------------------------------------
 #The class connects to the database and extracts the data that will be used to ML purposes
-class connection():
+class Connection():
 	'''Conexión a la base de datos'''
-	#cx_Oracle.init_oracle_client(lib_dir=config.lib_dir)
+	cx_Oracle.init_oracle_client(lib_dir=config.lib_dir)
 	def __init__(self):
 		self.connection = None
 
@@ -30,18 +31,28 @@ class connection():
 			print("error:", error)
 				
 	# Function to calculate people's age
-	def age_f(self, date):
-		self.birth_date = date[0]
-		self.retire_date = date[1]
-		age = (self.retire_date.year - self.birth_date.year - ((self.retire_date.month - 2, self.retire_date.day) < 
-				(self.birth_date.month, self.birth_date.day)))
-		return age
+	# in_date: date value to calculate a period range referred to the age
+		def age_f(self, in_date):
+			if len(in_date) == 1:
+				self.last_date = date.today() #Y M D
+			else:
+				self.last_date = in_date[1]
 
-	#Function to calculate people time in the company
-	def time_f(self, date):
-		self.enter_date = date[0]
-		self.retire_date = date[1]
-		months = (self.retire_date.year - self.enter_date.year)*12 + (self.retire_date.month - self.enter_date.month) - 2
+			self.birth_date = in_date[0]
+			age = (self.last_date.year - self.birth_date.year - ((self.last_date.month - 2, self.last_date.day) < 
+					(self.birth_date.month, self.birth_date.day)))
+			return age
+
+	# Function to calculate people time in the company
+	# in_date: date value to calculate a period range referred to the time in the company
+	def time_f(self, in_date):
+		if len(in_date) == 1:
+			self.last_date = date.today() #Y M D
+		else:
+			self.last_date = in_date[1]
+		
+		self.enter_date = in_date[0]
+		months = (self.last_date.year - self.enter_date.year)*12 + (self.last_date.month - self.enter_date.month) - 2
 		return months
 
     # Function to query the data to the database through SQL strings
@@ -64,6 +75,8 @@ class connection():
 					dic_df[df_str]= pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[0]])
 				
 			elif "pivot_table" in list_functions:
+				self.cur.execute(query)
+				self.res = self.cur.fetchall()
 				# Create the dataframe
 				dic_df[df_str] = pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[1], list_title_query[0]])
 					
@@ -80,22 +93,30 @@ class connection():
 						# Additional data managing
 						dic_df[df_str] = pd.pivot_table(dic_df[df_str], values = list_title_query[0], index = ['PERSONA'], columns = list_title_query[1], fill_value = 0)
 						dic_df[df_str].columns = [str(col) + f"_{list_title_query[-1]}" for col in dic_df[df_str].columns]
+						dic_df[df_str].columns = [str(col) + f"_{list_functions[-1]}" for col in dic_df[df_str].columns]
 					
 					elif "fillna" in list_functions:
 						self.cur.execute(query)
 						self.res = self.cur.fetchall()
 						# Additional data managing
 						dic_df[df_str][list_title_query[1]] = dic_df[df_str][list_title_query[1]].fillna(list_title_query[-1])
+						dic_df[df_str][list_title_query[1]] = dic_df[df_str][list_title_query[1]].fillna(list_functions[-1])
 						dic_df[df_str] = pd.pivot_table(dic_df[df_str], values = list_title_query[0], index = ['PERSONA'], columns = list_title_query[1], fill_value = 0)
 
-			elif "age" or "time" in list_functions:
+			elif ("age" in list_functions) or ("time" in list_functions):
 				self.cur.execute(query)
 				self.res = self.cur.fetchall()
 				func = self.age_f if "age" in list_functions else self.time_f
+				# List with the query columns needed to the apply function
+				list_columns = list_title_query[1:]
+				list_columns.insert(0, 'PERSONA')
 				# Create the dataframe
 				dic_df[df_str] = pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[1], list_title_query[2]])
 				dic_df[df_str][list_title_query[0]] = dic_df[df_str][[list_title_query[1], list_title_query[2]]].apply(func, axis = 1)
 				dic_df[df_str].drop(columns = [list_title_query[1], list_title_query[2]], inplace = True)
+				dic_df[df_str] = pd.DataFrame(self.res, columns = list_columns)
+				dic_df[df_str][list_title_query[0]] = dic_df[df_str][list_title_query[1:]].apply(func, axis = 1)
+				dic_df[df_str].drop(columns = list_title_query[1:], inplace = True)
 
 			elif "replace" in list_functions:
 				self.cur.execute(query)
@@ -126,6 +147,13 @@ class connection():
 		print(f"Duración del procedimiento (seg): {query_time}")
 
 		return df
+
+	# Function to export the dataframes from the database as csv files
+	# path: the direction where to find the file
+	# in_df: the dataframe to save
+	def export_csv(self, in_path: str, in_df: pd.DataFrame) -> None:
+		in_df.to_csv(in_path + "_" + "{:%Y_%m_%d_%H}".format(datetime.datetime.now()) + ".csv", index = False)
+
 
 #---------------------------------------------- Dictionaries ----------------------------------------------
 # Dictionaries with the queries and the process they need to be fetched
@@ -582,7 +610,7 @@ ORDER BY A.PERSONA, A.TIPO_SERVICIO", ["CANTIDAD_RIESGOS", "TIPO_SERVICIO"], ["p
 #***************************************************************************************************
 "query_10": ["SELECT CONSECUTIVO AS PERSONA, FECHA_NACIMIENTO FROM PERSONAS\
             WHERE FECHA_RETIRO IS NULL AND FECHA_NACIMIENTO IS NOT NULL", 
-			["EDAD", "FECHA_NACIMIENTO", "FECHA_RETIRO"], ["age", "apply", "drop"]],
+			["EDAD", "FECHA_NACIMIENTO"], ["age", "apply", "drop"]],
 
 #***************************************************************************************************
 "query_11": ["SELECT CONSECUTIVO AS PERSONA, GENERO FROM PERSONAS\
@@ -591,25 +619,30 @@ ORDER BY A.PERSONA, A.TIPO_SERVICIO", ["CANTIDAD_RIESGOS", "TIPO_SERVICIO"], ["p
 #***************************************************************************************************
 "query_12": ["SELECT CONSECUTIVO AS PERSONA, FECHA_INGRESO FROM PERSONAS\
             WHERE FECHA_RETIRO IS NULL AND FECHA_INGRESO IS NOT NULL", 
-			["TIEMPO_EMP", "FECHA_INGRESO", "FECHA_RETIRO"], ["time", "apply", "drop"]]
+			["TIEMPO_EMP", "FECHA_INGRESO"], ["time", "apply", "drop"]]
 
 #***************************************************************************************************
 }
 
 #---------------------------------------------- Calls ----------------------------------------------
-con = connection()
+con = Connection()
 con.try_connection()
 dic_df_retired = con.make_query(dict_retired)
 dic_df_non_retired = con.make_query(dict_non_retired)
 
 df_retired = con.merge_df(dic_df_retired)
 df_retired.head()
+print(list(df_retired.columns))
 
 df_non_retired = con.merge_df(dic_df_non_retired)
 df_non_retired.head()
 
+print(list(df_non_retired.columns))
 
+con.export_csv(in_path = "../static/data/raw_data/retired", in_df = df_retired)
+con.export_csv(in_path = "../static/data/raw_data/non_retired", in_df = df_non_retired)
 
+#https://loaddatafunc.blob.core.windows.net/churn-files
 
 
 
