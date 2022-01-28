@@ -9,7 +9,7 @@ import time
 from azure.storage.blob import BlobServiceClient
 
 #---------------------------------------------- Class to extract the data ----------------------------------------------
-#The class connects to the database and extracts the data that will be used to ML purposes
+# The class connects to the database and extracts the data that will be used to ML purposes
 class Connection():
 	'''Conexión a la base de datos'''
 	cx_Oracle.init_oracle_client(lib_dir=config.lib_dir)
@@ -32,20 +32,20 @@ class Connection():
 				
 	# Function to calculate people's age
 	# in_date: date value to calculate a period range referred to the age
-		def age_f(self, in_date):
-			if len(in_date) == 1:
-				self.last_date = date.today() #Y M D
-			else:
-				self.last_date = in_date[1]
+	def age_f(self, in_date) -> int:
+		if len(in_date) == 1:
+			self.last_date = date.today() #Y M D
+		else:
+			self.last_date = in_date[1]
 
-			self.birth_date = in_date[0]
-			age = (self.last_date.year - self.birth_date.year - ((self.last_date.month - 2, self.last_date.day) < 
-					(self.birth_date.month, self.birth_date.day)))
-			return age
+		self.birth_date = in_date[0]
+		age = (self.last_date.year - self.birth_date.year - ((self.last_date.month - 2, self.last_date.day) < 
+				(self.birth_date.month, self.birth_date.day)))
+		return age
 
-	# Function to calculate people time in the company
+	# Function to calculate people's time in the company
 	# in_date: date value to calculate a period range referred to the time in the company
-	def time_f(self, in_date):
+	def time_f(self, in_date) -> int:
 		if len(in_date) == 1:
 			self.last_date = date.today() #Y M D
 		else:
@@ -92,14 +92,12 @@ class Connection():
 						self.res = self.cur.fetchall()
 						# Additional data managing
 						dic_df[df_str] = pd.pivot_table(dic_df[df_str], values = list_title_query[0], index = ['PERSONA'], columns = list_title_query[1], fill_value = 0)
-						dic_df[df_str].columns = [str(col) + f"_{list_title_query[-1]}" for col in dic_df[df_str].columns]
 						dic_df[df_str].columns = [str(col) + f"_{list_functions[-1]}" for col in dic_df[df_str].columns]
 					
 					elif "fillna" in list_functions:
 						self.cur.execute(query)
 						self.res = self.cur.fetchall()
 						# Additional data managing
-						dic_df[df_str][list_title_query[1]] = dic_df[df_str][list_title_query[1]].fillna(list_title_query[-1])
 						dic_df[df_str][list_title_query[1]] = dic_df[df_str][list_title_query[1]].fillna(list_functions[-1])
 						dic_df[df_str] = pd.pivot_table(dic_df[df_str], values = list_title_query[0], index = ['PERSONA'], columns = list_title_query[1], fill_value = 0)
 
@@ -111,9 +109,6 @@ class Connection():
 				list_columns = list_title_query[1:]
 				list_columns.insert(0, 'PERSONA')
 				# Create the dataframe
-				dic_df[df_str] = pd.DataFrame(self.res, columns = ['PERSONA', list_title_query[1], list_title_query[2]])
-				dic_df[df_str][list_title_query[0]] = dic_df[df_str][[list_title_query[1], list_title_query[2]]].apply(func, axis = 1)
-				dic_df[df_str].drop(columns = [list_title_query[1], list_title_query[2]], inplace = True)
 				dic_df[df_str] = pd.DataFrame(self.res, columns = list_columns)
 				dic_df[df_str][list_title_query[0]] = dic_df[df_str][list_title_query[1:]].apply(func, axis = 1)
 				dic_df[df_str].drop(columns = list_title_query[1:], inplace = True)
