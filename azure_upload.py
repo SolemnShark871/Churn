@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from azure.storage.blob import BlobServiceClient, generate_account_sas, ResourceTypes, AccountSasPermissions
 import os
-import errno
+import errno 
 
 local_path = "./downloads"
 local_file_name = "prueba.txt"
