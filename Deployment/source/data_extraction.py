@@ -7,12 +7,15 @@ import cx_Oracle
 import config
 import time
 from azure.storage.blob import BlobServiceClient
+import json
+
+
 
 #---------------------------------------------- Class to extract the data ----------------------------------------------
 # The class connects to the database and extracts the data that will be used to ML purposes
 class Connection():
 	'''Conexión a la base de datos'''
-	cx_Oracle.init_oracle_client(lib_dir=config.lib_dir)
+	#cx_Oracle.init_oracle_client(lib_dir=config.lib_dir)
 	def __init__(self):
 		self.connection = None
 
@@ -620,10 +623,20 @@ ORDER BY A.PERSONA, A.TIPO_SERVICIO", ["CANTIDAD_RIESGOS", "TIPO_SERVICIO"], ["p
 }
 
 #---------------------------------------------- Calls ----------------------------------------------
+# Reading querys of retired people
+f_retired = open("../static/data/query_retired.json")
+querys_retired = json.load(f_retired)
+
+f_non_retired = open("../static/data/query_non_retired.json")
+querys_non_retired = json.load(f_non_retired)
+
 con = Connection()
 con.try_connection()
-dic_df_retired = con.make_query(dict_retired)
-dic_df_non_retired = con.make_query(dict_non_retired)
+dic_df_retired = con.make_query(querys_retired)
+
+print(dic_df_retired)
+
+dic_df_non_retired = con.make_query(querys_non_retired)
 
 df_retired = con.merge_df(dic_df_retired)
 df_retired.head()

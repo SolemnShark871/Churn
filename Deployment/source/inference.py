@@ -21,12 +21,3 @@ class Inference():
 
 #---------------------------------------------- Calls ----------------------------------------------
 
-import json
- 
-# Opening JSON file
-file = open('test.json')
- 
-# returns JSON object as
-# a dictionary
-data = json.load(file)
-print(data['query_1'][1])
